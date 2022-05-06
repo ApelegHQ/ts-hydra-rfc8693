@@ -1,0 +1,25 @@
+serve:
+  cookies:
+    same_site_mode: Lax
+
+urls:
+  self:
+    issuer: http://localhost:8844
+  consent: http://localhost:8830/consent
+  login: http://localhost:8830/login
+  logout: http://localhost:8830/logout
+
+secrets:
+  system:
+    - youReallyNeedToChangeThis
+
+oidc:
+  subject_identifiers:
+    supported_types:
+      - pairwise
+      - public
+    pairwise:
+      salt: youReallyNeedToChangeThis
+
+log:
+  leak_sensitive_values: true
