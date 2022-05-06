@@ -1,0 +1,21 @@
+{
+	"server": {
+		"port": 3000,
+		"trustProxy": "loopback, linklocal, uniquelocal",
+		"logLevel": "info"
+	},
+	"restApi": {
+		"baseUrl": "http://127.0.0.1:7777"
+	},
+	"baseUrl": "http://localhost:3000",
+	"hydra": {
+		"public": "http://localhost:9990",
+		"admin": "http://localhost:9999",
+		"client": {
+			"id": "",
+			"secret": "",
+			"tokenAuthMethod": "client_secret_basic",
+			"redirectUri": "about:invalid"
+		}
+	}
+}

@@ -1,0 +1,140 @@
+###########################################################################
+#######             FOR DEMONSTRATION PURPOSES ONLY                 #######
+###########################################################################
+#                                                                         #
+# If you have not yet read the tutorial, do so now:                       #
+#  https://www.ory.sh/docs/hydra/5min-tutorial                            #
+#                                                                         #
+# This set up is only for demonstration purposes. The login               #
+# endpoint can only be used if you follow the steps in the tutorial.      #
+#                                                                         #
+###########################################################################
+
+version: '3.7'
+
+services:
+
+  main-hydra:
+    image: oryd/hydra:v1.10.6-sqlite
+    ports:
+      - "8846:4444" # Public port
+      - "8847:4445" # Admin port
+    command:
+      serve -c /etc/config/hydra/hydra.yml all --dangerous-force-http
+    volumes:
+      -
+        type: volume
+        source: main-hydra-sqlite
+        target: /var/lib/sqlite
+        read_only: false
+      -
+        type: bind
+        source: ./contrib/main-hydra
+        target: /etc/config/hydra
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+    restart: unless-stopped
+    depends_on:
+      - main-hydra-migrate
+    networks:
+      - intranet
+
+  main-hydra-migrate:
+    image: oryd/hydra:v1.10.6-sqlite
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+    command:
+      migrate -c /etc/config/hydra/hydra.yml sql -e --yes
+    volumes:
+      -
+        type: volume
+        source: main-hydra-sqlite
+        target: /var/lib/sqlite
+        read_only: false
+      -
+        type: bind
+        source: ./contrib/main-hydra
+        target: /etc/config/hydra
+    restart: on-failure
+    networks:
+      - intranet
+
+  sub-hydra:
+    image: oryd/hydra:v1.10.6-sqlite
+    ports:
+      - "8844:4444" # Public port
+      - "8845:4445" # Admin port
+      - "8855:5555" # Demo port
+    command:
+      serve -c /etc/config/hydra/hydra.yml all --dangerous-force-http
+    volumes:
+      -
+        type: volume
+        source: sub-hydra-sqlite
+        target: /var/lib/sqlite
+        read_only: false
+      -
+        type: bind
+        source: ./contrib/sub-hydra
+        target: /etc/config/hydra
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+      - SERVE_PUBLIC_CORS_ENABLED=true
+    restart: unless-stopped
+    depends_on:
+      - sub-hydra-migrate
+    networks:
+      - intranet
+
+  sub-hydra-migrate:
+    image: oryd/hydra:v1.10.6-sqlite
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+    command:
+      migrate -c /etc/config/hydra/hydra.yml sql -e --yes
+    volumes:
+      -
+        type: volume
+        source: sub-hydra-sqlite
+        target: /var/lib/sqlite
+        read_only: false
+      -
+        type: bind
+        source: ./contrib/sub-hydra
+        target: /etc/config/hydra
+    restart: on-failure
+    networks:
+      - intranet
+
+  consent:
+    environment:
+      - HYDRA_ADMIN_URL=http://sub-hydra:4445
+    image: oryd/hydra-login-consent-node:v1.10.6
+    ports:
+      - "8830:3000"
+    restart: unless-stopped
+    networks:
+      - intranet
+
+  hydra-rfc8693:
+    environment:
+      - SERVER_PORT=5678
+      - HYDRA_PUBLIC=http://main-hydra:4444
+      - HYDRA_ADMIN=http://main-hydra:4445
+      - HYDRA_CLIENT_ID=ad97fde9-87d5-4f98-b20e-0cef75d39569
+      - HYDRA_CLIENT_SECRET=
+      - HYDRA_CLIENT_TOKENAUTHMETHOD=none
+      - HYDRA_CLIENT_REDIRECT_URI=about:invalid
+    image: hydra-rfc8693:latest
+    ports:
+      - "5678:5678"
+    restart: unless-stopped
+    networks:
+      - intranet
+
+networks:
+  intranet:
+
+volumes:
+  main-hydra-sqlite:
+  sub-hydra-sqlite:

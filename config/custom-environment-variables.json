@@ -1,0 +1,42 @@
+{
+	"server": {
+		"port": {
+			"__name": "SERVER_PORT",
+			"__format": "number"
+		},
+		"logLevel": "SERVER_LOG_LEVEL",
+		"oauth2": {
+			"client": {
+				"id": "SERVER_OAUTH2_CLIENT_ID",
+				"secret": "SERVER_OAUTH2_CLIENT_SECRET",
+				"scope": "SERVER_OAUTH2_CLIENT_SCOPE",
+				"audience": "SERVER_OAUTH2_CLIENT_AUDIENCE",
+				"tokenAuthMethod": "SERVER_OAUTH2_CLIENT_TOKENAUTHMETHOD",
+				"tokenEndpoint": "SERVER_OAUTH2_CLIENT_TOKENENDPOINT"
+			}
+		}
+	},
+	"originLookup": {
+		"uri": "ORIGINLOOKUP_URI",
+		"parameter": "ORIGINLOOKUP_PARAMETER"
+	},
+	"hydra": {
+		"public": "HYDRA_PUBLIC",
+		"admin": "HYDRA_ADMIN",
+		"client": {
+			"id": "HYDRA_CLIENT_ID",
+			"secret": "HYDRA_CLIENT_SECRET",
+			"tokenAuthMethod": "HYDRA_CLIENT_TOKENAUTHMETHOD",
+			"redirectUri": "HYDRA_CLIENT_REDIRECTURI"
+		},
+		"scope": "HYDRA_SCOPE",
+		"audience": {
+			"__name": "HYDRA_AUDIENCE",
+			"__format": "json"
+		},
+		"sessionAccessTokenExtra": {
+			"__name": "HYDRA_SESSIONACCESSTOKENEXTRA",
+			"__format": "json"
+		}
+	}
+}

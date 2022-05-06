@@ -1,0 +1,38 @@
+{
+	"server": {
+		"port": 3000,
+		"trustProxy": "loopback, linklocal, uniquelocal",
+		"logLevel": "info",
+		"oauth2": {
+			"client": {
+				"id": "",
+				"secret": "",
+				"scope": "",
+				"audience": "",
+				"tokenAuthMethod": "client_secret_basic",
+				"tokenEndpoint": "http://localhost:9990/oauth2/token"
+			}
+		}
+	},
+	"originLookup": {
+		"uri": "http://127.0.0.1:7777/rpc/get_public_web_establishment_id",
+		"parameter": "p_public_web_origin"
+	},
+	"restApi": {
+		"baseUrl": "http://127.0.0.1:7777"
+	},
+	"baseUrl": "http://localhost:3000",
+	"hydra": {
+		"public": "http://localhost:9990",
+		"admin": "http://localhost:9999",
+		"client": {
+			"id": "",
+			"secret": "",
+			"tokenAuthMethod": "client_secret_basic",
+			"redirectUri": "about:invalid"
+		},
+		"scope": "",
+		"audience": [],
+		"sessionAccessTokenExtra": {}
+	}
+}

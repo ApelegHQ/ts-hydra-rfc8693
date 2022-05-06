@@ -1,0 +1,13 @@
+diff --git a/node_modules/express/lib/view.js b/node_modules/express/lib/view.js
+index cf101ca..115b141 100644
+--- a/node_modules/express/lib/view.js
++++ b/node_modules/express/lib/view.js
+@@ -78,7 +78,7 @@ function View(name, options) {
+     debug('require "%s"', mod)
+ 
+     // default engine export
+-    var fn = require(mod).__express
++    var fn = undefined;
+ 
+     if (typeof fn !== 'function') {
+       throw new Error('Module "' + mod + '" does not provide a view engine.')
