@@ -18,7 +18,7 @@ import { AdminApi, Configuration } from '@ory/hydra-client';
 import axios from 'axios';
 import config from 'config';
 import crypto from 'crypto';
-import express from 'express';
+import http from 'http';
 import { URLSearchParams } from 'url';
 import authenticatedAxios from './lib/ClientCredentialsToken';
 import { log } from './lib/Logger';
@@ -59,7 +59,7 @@ const generateChallenge = (): [string, string] => {
 	return [verifier, challenge];
 };
 
-const getOrigin = (uri?: string): string | null => {
+const getOrigin = (uri?: string | null): string | null => {
 	if (!uri) {
 		return null;
 	}
@@ -237,357 +237,385 @@ const hydra = new AdminApi(
 	authedClient,
 );
 
-const app = express()
-	.disable('x-powered-by')
-	.get('/.well-known/time', (req, res) => {
-		res.header({
+class ResponseError extends Error {
+	information: { error: string; error_description?: string };
+
+	constructor(information: { error: string; error_description?: string }) {
+		super();
+		this.name = this.constructor.name;
+		this.information = information;
+	}
+}
+
+const bodyParser = (req: http.IncomingMessage): Promise<URLSearchParams> => {
+	if (req.headers['content-type'] !== 'application/x-www-form-urlencoded') {
+		throw 415;
+	}
+
+	return new Promise((resolve, reject) => {
+		try {
+			const chunks: Buffer[] = [];
+			req.on('data', (chunk: Buffer) => {
+				chunks.push(chunk);
+			});
+			req.on('end', () => {
+				resolve(
+					new URLSearchParams(
+						Buffer.concat(chunks).toString('utf-8'),
+					),
+				);
+			});
+		} catch (e) {
+			reject(e);
+		}
+	});
+};
+
+const app = http.createServer((req, res) => {
+	if (req.method === 'GET' && req.url === '/.well-known/time') {
+		res.writeHead(204, {
 			'cache-control': 'no-store',
 			date: new Date().toUTCString(),
-		})
-			.status(204)
-			.send();
-	})
-	.post(
-		'/token',
-		express.urlencoded({
-			extended: false,
-		}),
-		(req, res) => {
-			Promise.resolve()
-				.then(async () => {
-					if (
-						req.body['grant_type'] !==
-						'urn:ietf:params:oauth:grant-type:token-exchange'
-					) {
-						res.status(400).send({
-							error: 'unsupported_grant_type',
-						});
-						return;
-					}
+		});
+		res.end();
+		return;
+	} else if (req.method === 'POST' && req.url === '/token') {
+		bodyParser(req)
+			.then(async (body) => {
+				if (
+					body.get('grant_type') !==
+					'urn:ietf:params:oauth:grant-type:token-exchange'
+				) {
+					throw new ResponseError({
+						error: 'unsupported_grant_type',
+					});
+				}
 
-					if (
-						req.body['subject_token_type'] !==
+				if (
+					body.get('subject_token_type') !==
+					'urn:ietf:params:oauth:token-type:access_token'
+				) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid subject_token_type',
+					});
+				}
+
+				if (body.get('actor_token')) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'actor_token not supported',
+					});
+				}
+
+				if (body.get('actor_token_type')) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'actor_token_type not supported',
+					});
+				}
+
+				if (
+					body.get('requested_token_type') &&
+					body.get('requested_token_type') !==
 						'urn:ietf:params:oauth:token-type:access_token'
-					) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid subject_token_type',
-						});
-						return;
-					}
+				) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid requested_token_type',
+					});
+				}
 
-					if (req.body['actor_token']) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'actor_token not supported',
-						});
-						return;
-					}
-
-					if (req.body['actor_token_type']) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'actor_token_type not supported',
-						});
-					}
-
-					if (
-						req.body['requested_token_type'] &&
-						req.body['requested_token_type'] !==
-							'urn:ietf:params:oauth:token-type:access_token'
-					) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid requested_token_type',
-						});
-						return;
-					}
-
-					const requestedScope =
-						typeof req.body['scope'] !== 'undefined'
-							? typeof req.body['scope'] === 'string'
-								? String(req.body['scope'] ?? '')
-										.split(' ')
-										.filter((v) => v.length)
-								: null
-							: [];
-
-					if (
-						requestedScope === null ||
-						!requestedScope.reduce(
-							(acc, cv) => acc && hydraScope.includes(cv),
-							true,
-						)
-					) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid scope',
-						});
-						return;
-					}
-
-					const requestedAudience = req.body['audience']
-						? typeof req.body['audience'] === 'string'
-							? [req.body['audience']]
-							: Array.isArray(req.body['audience'])
-							? req.body['audience'].filter((v) => v)
+				const requestedScope =
+					typeof body.get('scope') !== 'undefined'
+						? typeof body.get('scope') === 'string'
+							? String(body.get('scope') ?? '')
+									.split(' ')
+									.filter((v) => v.length)
 							: null
 						: [];
 
-					if (
-						requestedAudience === null ||
-						!requestedAudience.reduce(
-							(acc, cv) => acc && hydraAudience.includes(cv),
-							true,
-						)
-					) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid audience',
-						});
-						return;
-					}
-
-					const resource = getOrigin(req.body['resource']);
-
-					if (!resource) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid resource',
-						});
-						return;
-					}
-
-					const establishmentInfo = await authedClient.get(
-						`${originLookupUri}?${new URLSearchParams({
-							[originLookupParameter]: resource,
-						})}`,
-						{
-							headers: {
-								accept: 'application/vnd.pgrst.object+json',
-							},
-							validateStatus: (status) =>
-								[200, 406].includes(status),
-						},
-					);
-
-					if (
-						establishmentInfo.status !== 200 ||
-						typeof establishmentInfo.data !== 'object' ||
-						typeof establishmentInfo.data.establishment_id !==
-							'string' ||
-						!establishmentInfo.data.userinfo_endpoint ||
-						typeof establishmentInfo.data.userinfo_endpoint !==
-							'string' ||
-						getOrigin(establishmentInfo.data.userinfo_endpoint) ===
-							null
-					) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid origin',
-						});
-						return;
-					}
-
-					const userinfo = await axios.get(
-						establishmentInfo.data.userinfo_endpoint,
-						{
-							headers: {
-								authorization: `Bearer ${req.body['subject_token']}`,
-							},
-							validateStatus: (status) =>
-								[200, 400, 401].includes(status),
-						},
-					);
-
-					if (userinfo.status !== 200) {
-						res.status(400).send({
-							error: 'invalid_request',
-							error_description: 'invalid subject_token',
-						});
-						return;
-					}
-
-					const state = generateState();
-					const [code_verifier, code_challenge] = generateChallenge();
-
-					const initiatorParams = new URLSearchParams({
-						response_type: 'code',
-						client_id: hydraClientId,
-						redirect_uri: hydraClientRedirectUri,
-						state: state,
-						code_challenge: code_challenge,
-						code_challenge_method: 'S256',
-						...(requestedScope
-							? { scope: requestedScope.join(' ') }
-							: {}),
-					});
-					requestedAudience.forEach((v) => {
-						initiatorParams.append('audience', v);
-					});
-
-					const initiator = await axios.get(
-						`${hydraPublicUri}/oauth2/auth?${initiatorParams}`,
-						{
-							maxRedirects: 0,
-							validateStatus: (s: number) => s >= 300 && s <= 399,
-						},
-					);
-
-					const loginCookies = (initiator.headers['set-cookie'] ?? [])
-						.map((cookie: string) => cookie.split(';')[0])
-						.join('; ');
-
-					const loginChallenge = new URL(
-						initiator.headers['location'],
-					).searchParams.get('login_challenge');
-
-					if (!loginChallenge) {
-						throw new Error('Invalid login challenge');
-					}
-
-					const acceptedLoginRequest = await hydra.acceptLoginRequest(
-						loginChallenge,
-						{
-							subject: `${establishmentInfo.data.establishment_id}/${userinfo.data['sub']}`,
-						},
-					);
-
-					const consentDestination = new URL(
-						acceptedLoginRequest.data.redirect_to,
-					);
-
-					const hydraLoginRequest = await axios.get(
-						`${hydraPublicUri}${consentDestination.pathname}${consentDestination.search}`,
-						{
-							headers: {
-								...(loginCookies
-									? { cookie: loginCookies }
-									: {}),
-							},
-							maxRedirects: 0,
-							validateStatus: (status: number) =>
-								status >= 300 && status <= 399,
-						},
-					);
-					const consentCookies = (
-						hydraLoginRequest.headers['set-cookie'] ?? []
+				if (
+					requestedScope === null ||
+					!requestedScope.reduce(
+						(acc, cv) => acc && hydraScope.includes(cv),
+						true,
 					)
-						.map((cookie: string) => cookie.split(';')[0])
-						.join('; ');
+				) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid scope',
+					});
+				}
 
-					const consentChallenge = new URL(
-						hydraLoginRequest.headers['location'],
-					).searchParams.get('consent_challenge');
+				const requestedAudience = body.getAll('audience');
 
-					if (!consentChallenge) {
-						throw new Error('Invalid consent challenge');
-					}
+				if (
+					requestedAudience === null ||
+					!requestedAudience.reduce(
+						(acc, cv) => acc && hydraAudience.includes(cv),
+						true,
+					)
+				) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid audience',
+					});
+				}
 
-					// TODO Set groups, etc.
-					const acceptedConsentRequest =
-						await hydra.acceptConsentRequest(consentChallenge, {
-							grant_access_token_audience: requestedAudience,
-							grant_scope: requestedScope,
-							session: {
-								access_token: {
-									...hydraSessionAccessTokenExtra,
-									'urn:oid:1.2.826.0.1.12982883:tilauksesi:params:oauth:claims:establishment_id':
-										establishmentInfo.data.establishment_id,
-								},
-							},
-						});
+				const resource = getOrigin(body.get('resource'));
 
-					const finalDestination = new URL(
-						acceptedConsentRequest.data.redirect_to,
-					);
+				if (!resource) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid resource',
+					});
+				}
 
-					const hydraConsentRequest = await axios.get(
-						[
-							`${hydraPublicUri}`,
-							finalDestination.pathname,
-							finalDestination.search,
-						].join(''),
-						{
-							headers: {
-								...(consentCookies
-									? { cookie: consentCookies }
-									: {}),
-							},
-							maxRedirects: 0,
-							validateStatus: (status: number) =>
-								status >= 300 && status <= 399,
+				const establishmentInfo = await authedClient.get(
+					`${originLookupUri}?${new URLSearchParams({
+						[originLookupParameter]: resource,
+					})}`,
+					{
+						headers: {
+							accept: 'application/vnd.pgrst.object+json',
 						},
-					);
+						validateStatus: (status) => [200, 406].includes(status),
+					},
+				);
 
-					const clientRedirect = new URL(
-						hydraConsentRequest.headers['location'],
-					).searchParams;
-					const redirectState = clientRedirect.get('state');
-					const code = clientRedirect.get('code');
+				if (
+					establishmentInfo.status !== 200 ||
+					typeof establishmentInfo.data !== 'object' ||
+					typeof establishmentInfo.data.establishment_id !==
+						'string' ||
+					!establishmentInfo.data.userinfo_endpoint ||
+					typeof establishmentInfo.data.userinfo_endpoint !==
+						'string' ||
+					getOrigin(establishmentInfo.data.userinfo_endpoint) === null
+				) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid origin',
+					});
+				}
 
-					if (redirectState !== state) {
-						throw new Error('Invalid state');
-					}
+				const userinfo = await axios.get(
+					establishmentInfo.data.userinfo_endpoint,
+					{
+						headers: {
+							authorization: `Bearer ${body.get(
+								'subject_token',
+							)}`,
+						},
+						validateStatus: (status) =>
+							[200, 400, 401].includes(status),
+					},
+				);
 
-					if (!code) {
-						throw new Error('Invalid code');
-					}
+				if (userinfo.status !== 200) {
+					throw new ResponseError({
+						error: 'invalid_request',
+						error_description: 'invalid subject_token',
+					});
+				}
 
-					const tokenRequest = await axios.post(
-						`${hydraPublicUri}/oauth2/token`,
-						new URLSearchParams({
-							grant_type: 'authorization_code',
-							redirect_uri: hydraClientRedirectUri,
-							code: code,
-							code_verifier: code_verifier,
-							...(hydraTokenAuthMethod === 'client_secret_basic'
-								? {}
-								: hydraTokenAuthMethod === 'client_secret_post'
-								? {
-										client_id: hydraClientId,
-										client_secret: hydraClientSecret,
-								  }
-								: {
-										client_id: hydraClientId,
-								  }),
-						}).toString(),
-						{
-							maxRedirects: 0,
-							validateStatus: (status: number) => status === 200,
-							headers: {
-								'content-type':
-									'application/x-www-form-urlencoded',
+				const state = generateState();
+				const [code_verifier, code_challenge] = generateChallenge();
+
+				const initiatorParams = new URLSearchParams({
+					response_type: 'code',
+					client_id: hydraClientId,
+					redirect_uri: hydraClientRedirectUri,
+					state: state,
+					code_challenge: code_challenge,
+					code_challenge_method: 'S256',
+					...(requestedScope
+						? { scope: requestedScope.join(' ') }
+						: {}),
+				});
+				requestedAudience.forEach((v) => {
+					initiatorParams.append('audience', v);
+				});
+
+				const initiator = await axios.get(
+					`${hydraPublicUri}/oauth2/auth?${initiatorParams}`,
+					{
+						maxRedirects: 0,
+						validateStatus: (s: number) => s >= 300 && s <= 399,
+					},
+				);
+
+				const loginCookies = (initiator.headers['set-cookie'] ?? [])
+					.map((cookie: string) => cookie.split(';')[0])
+					.join('; ');
+
+				const loginChallenge = new URL(
+					initiator.headers['location'],
+				).searchParams.get('login_challenge');
+
+				if (!loginChallenge) {
+					throw new Error('Invalid login challenge');
+				}
+
+				const acceptedLoginRequest = await hydra.acceptLoginRequest(
+					loginChallenge,
+					{
+						subject: `${establishmentInfo.data.establishment_id}/${userinfo.data['sub']}`,
+					},
+				);
+
+				const consentDestination = new URL(
+					acceptedLoginRequest.data.redirect_to,
+				);
+
+				const hydraLoginRequest = await axios.get(
+					`${hydraPublicUri}${consentDestination.pathname}${consentDestination.search}`,
+					{
+						headers: {
+							...(loginCookies ? { cookie: loginCookies } : {}),
+						},
+						maxRedirects: 0,
+						validateStatus: (status: number) =>
+							status >= 300 && status <= 399,
+					},
+				);
+				const consentCookies = (
+					hydraLoginRequest.headers['set-cookie'] ?? []
+				)
+					.map((cookie: string) => cookie.split(';')[0])
+					.join('; ');
+
+				const consentChallenge = new URL(
+					hydraLoginRequest.headers['location'],
+				).searchParams.get('consent_challenge');
+
+				if (!consentChallenge) {
+					throw new Error('Invalid consent challenge');
+				}
+
+				// TODO Set groups, etc.
+				const acceptedConsentRequest = await hydra.acceptConsentRequest(
+					consentChallenge,
+					{
+						grant_access_token_audience: requestedAudience,
+						grant_scope: requestedScope,
+						session: {
+							access_token: {
+								...hydraSessionAccessTokenExtra,
+								'urn:oid:1.2.826.0.1.12982883:tilauksesi:params:oauth:claims:establishment_id':
+									establishmentInfo.data.establishment_id,
 							},
-							...(hydraTokenAuthMethod === 'client_secret_basic'
-								? {
-										auth: {
-											username: hydraClientId,
-											password: hydraClientSecret,
-										},
-								  }
+						},
+					},
+				);
+
+				const finalDestination = new URL(
+					acceptedConsentRequest.data.redirect_to,
+				);
+
+				const hydraConsentRequest = await axios.get(
+					[
+						`${hydraPublicUri}`,
+						finalDestination.pathname,
+						finalDestination.search,
+					].join(''),
+					{
+						headers: {
+							...(consentCookies
+								? { cookie: consentCookies }
 								: {}),
 						},
-					);
+						maxRedirects: 0,
+						validateStatus: (status: number) =>
+							status >= 300 && status <= 399,
+					},
+				);
 
-					res.send({
+				const clientRedirect = new URL(
+					hydraConsentRequest.headers['location'],
+				).searchParams;
+				const redirectState = clientRedirect.get('state');
+				const code = clientRedirect.get('code');
+
+				if (redirectState !== state) {
+					throw new Error('Invalid state');
+				}
+
+				if (!code) {
+					throw new Error('Invalid code');
+				}
+
+				const tokenRequest = await axios.post(
+					`${hydraPublicUri}/oauth2/token`,
+					new URLSearchParams({
+						grant_type: 'authorization_code',
+						redirect_uri: hydraClientRedirectUri,
+						code: code,
+						code_verifier: code_verifier,
+						...(hydraTokenAuthMethod === 'client_secret_basic'
+							? {}
+							: hydraTokenAuthMethod === 'client_secret_post'
+							? {
+									client_id: hydraClientId,
+									client_secret: hydraClientSecret,
+							  }
+							: {
+									client_id: hydraClientId,
+							  }),
+					}).toString(),
+					{
+						maxRedirects: 0,
+						validateStatus: (status: number) => status === 200,
+						headers: {
+							'content-type': 'application/x-www-form-urlencoded',
+						},
+						...(hydraTokenAuthMethod === 'client_secret_basic'
+							? {
+									auth: {
+										username: hydraClientId,
+										password: hydraClientSecret,
+									},
+							  }
+							: {}),
+					},
+				);
+
+				res.writeHead(200, { 'content-type': 'application/json' });
+				res.write(
+					JSON.stringify({
 						access_token: tokenRequest.data.access_token,
 						issued_token_type:
 							'urn:ietf:params:oauth:token-type:access_token',
 						token_type: tokenRequest.data.token_type,
 						expires_in: tokenRequest.data.expires_in,
 						scope: tokenRequest.data.scope,
-					});
-				})
-				.catch((e) => {
-					log.warn(
-						{ message: e.message, stack: e.stack },
-						'Unexpected error',
-					);
-					res.sendStatus(500);
-				});
-		},
-	);
+					}),
+				);
+			})
+			.catch((e) => {
+				if (typeof e === 'number') {
+					res.writeHead(e);
+					return;
+				} else if (e instanceof ResponseError) {
+					res.writeHead(400, { 'content-type': 'application/json' });
+					res.write(JSON.stringify(e.information));
+					return;
+				}
+
+				log.warn(
+					{ message: e.message, stack: e.stack },
+					'Unexpected error',
+				);
+				res.writeHead(500);
+			})
+			.finally(() => res.end());
+		return;
+	}
+
+	res.writeHead(501);
+	res.end();
+});
 
 app.listen(config.get('server.port'), () => {
 	log.info('Listening');
