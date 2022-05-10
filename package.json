@@ -39,5 +39,5 @@
 		"test": "echo \"Warning: no test specified\""
 	},
 	"author": "Exact Realty Limited",
-	"license": "UNLICENSED"
+	"license": "ISC"
 }
