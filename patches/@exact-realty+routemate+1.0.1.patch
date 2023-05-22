@@ -1,0 +1,10 @@
+diff --git a/node_modules/@exact-realty/routemate/dist/types/index.d.ts b/node_modules/@exact-realty/routemate/dist/types/index.d.ts
+index b6a6b58..a79b393 100644
+--- a/node_modules/@exact-realty/routemate/dist/types/index.d.ts
++++ b/node_modules/@exact-realty/routemate/dist/types/index.d.ts
+@@ -1,4 +1,4 @@
+-/// <reference types="@cloudflare/workers-types" />
++//
+ export type TMaybePromised<T> = Awaited<PromiseLike<T>> | PromiseLike<T>;
+ declare enum EHttpMethods {
+     GET = "get",

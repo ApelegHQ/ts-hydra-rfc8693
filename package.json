@@ -1,0 +1,68 @@
+{
+	"name": "@exact-realty/hydra-rfc8693",
+	"version": "1.1.0",
+	"description": "An implementation of RFC 8693 for Ory Hydra, providing powerful capabilities for token exchange in OAuth 2.0 and OpenID Connect servers.",
+	"main": "dist/index.js",
+	"module": "./dist/index.mjs",
+	".": {
+		"import": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.mjs"
+		},
+		"require": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"devDependencies": {
+		"@exact-realty/routemate": "^1.0.1",
+		"@types/node": "^18.16.3",
+		"@typescript-eslint/eslint-plugin": "^5.27.1",
+		"@typescript-eslint/parser": "^5.27.1",
+		"esbuild": "^0.14.42",
+		"eslint": "^8.17.0",
+		"eslint-config-prettier": "^8.5.0",
+		"eslint-plugin-prettier": "^4.0.0",
+		"mocha": "^10.2.0",
+		"nyc": "^15.1.0",
+		"patch-package": "^6.4.7",
+		"prettier": "^2.6.2",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.7.3"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Exact-Realty/ts-hydra-rfc8693.git"
+	},
+	"scripts": {
+		"lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+		"build": "tsc --emitDeclarationOnly --declarationMap --declaration && node esbuild.mjs",
+		"test": "nyc mocha",
+		"prepare": "npm run build",
+		"prepublishOnly": "npm test && npm run lint",
+		"preversion": "npm run lint",
+		"postinstall": "exit 0",
+		"version": "npm run lint && git add -A src",
+		"postversion": "git push && git push --tags"
+	},
+	"author": "Exact Realty Limited",
+	"license": "Apache-2.0 WITH LLVM-exception",
+	"keywords": [
+		"OAuth 2.0",
+		"oauth2",
+		"OpenID Connect",
+		"oidc",
+		"RFC 8693",
+		"rfc8693",
+		"Ory Hydra",
+		"hydra",
+		"Token Exchange",
+		"Authentication",
+		"Security",
+		"Identity",
+		"Server",
+		"JavaScript",
+		"iam"
+	]
+}
