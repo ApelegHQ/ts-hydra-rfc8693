@@ -60,8 +60,6 @@ const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
   'about:invalid', // hydraClientRedirectUri
   'http://localhost:4444', // hydraPublicUri
   'http://localhost:4445', // hydraAdminUri
-  [], // hydraScope
-  [], // hydraAudience
   { ['clientAuthMethod']: 'none' }, // hydraPublicAuthParams
   // NB! Remember to use authentication in production
   { ['clientAuthMethod']: 'none' }, // hydraAdminAuthParams
@@ -75,6 +73,12 @@ const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
       name: 'Alice',
     }
   }),
+  [], // scope. Optional list of lowercase scopes
+  [], // audience. Optional list of audiences
+  [], // subjectTokenType. Optional list of acceptable token types;
+      // null or undefined defaults to access tokens
+  [], // actorTokenType. Optional list of acceptable token types
+      // null or undefined defaults to none
 );
 
 server(listeners.node)

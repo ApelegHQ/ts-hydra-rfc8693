@@ -13,14 +13,16 @@
  * limitations under the License.
  */
 
-class ResponseError extends Error {
-	information: { status?: number; error: string; error_description?: string };
+const errorResponse = (error: string, description?: string) =>
+	new Response(
+		JSON.stringify({
+			['error']: error,
+			['error_description']: description,
+		}),
+		{
+			status: 400,
+			headers: [['content-type', 'application/json']],
+		},
+	);
 
-	constructor(information: { error: string; error_description?: string }) {
-		super();
-		this.name = this.constructor.name;
-		this.information = information;
-	}
-}
-
-export default ResponseError;
+export default errorResponse;

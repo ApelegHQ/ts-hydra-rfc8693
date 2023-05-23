@@ -15,4 +15,5 @@
 
 export { default } from './exchangeTokenEndpoint.js';
 export type { TSessionInfo } from './exchangeTokenEndpoint.js';
+export { default as errorResponse } from './lib/errorResponse.js';
 export { default as authenticatedFetch } from './lib/authenticatedFetch.js';

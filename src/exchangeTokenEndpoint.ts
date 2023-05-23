@@ -14,7 +14,7 @@
  */
 
 import hydraSessionConstructorFactory from './hydraSessionConstructorFactory.js';
-import ResponseError from './lib/ResponseError.js';
+import errorResponse from './lib/errorResponse.js';
 import type { TAuthenticatedFetchParams } from './lib/authenticatedFetch.js';
 import authenticatedFetch from './lib/authenticatedFetch.js';
 import bodyParser from './lib/bodyParser.js';
@@ -35,11 +35,13 @@ const exchangeTokenEndpoint = (
 	hydraClientRedirectUri: Readonly<string>,
 	hydraPublicUri: Readonly<string>,
 	hydraAdminUri: Readonly<string>,
-	hydraScope: Readonly<string[]>,
-	hydraAudience: Readonly<string[]>,
 	hydraPublicAuthParams: Readonly<TAuthenticatedFetchParams>,
 	hydraAdminAuthParams: Readonly<TAuthenticatedFetchParams>,
 	userinfo: (body: URLSearchParams) => Promise<TSessionInfo> | TSessionInfo,
+	scope?: Readonly<string[]> | undefined | null,
+	audience?: Readonly<string[]> | undefined | null,
+	subjectTokenType?: Readonly<string[]> | undefined | null,
+	actorTokenType?: Readonly<string[]> | undefined | null,
 ) => {
 	if (!hydraPublicUri || !getOrigin(hydraPublicUri)) {
 		throw new Error('Invalid Hydra public URI: ' + hydraPublicUri);
@@ -82,10 +84,20 @@ const exchangeTokenEndpoint = (
 	}
 
 	if (
-		!Array.isArray(hydraAudience) ||
-		!hydraAudience.reduce((acc, cv) => acc && typeof cv === 'string', true)
+		!Array.isArray(audience) ||
+		!audience.reduce((acc, cv) => acc && typeof cv === 'string', true)
 	) {
-		throw new Error('Invalid Hydra audience: ' + hydraAudience);
+		throw new Error('Invalid Hydra audience: ' + audience);
+	}
+
+	// Default subject token type to accept is access token
+	if (!subjectTokenType) {
+		subjectTokenType = ['urn:ietf:params:oauth:token-type:access_token'];
+	}
+
+	// Default actor token type to accept is none
+	if (!actorTokenType) {
+		actorTokenType = [];
 	}
 
 	const hydraSessionConstructor = hydraSessionConstructorFactory(
@@ -99,49 +111,53 @@ const exchangeTokenEndpoint = (
 		authenticatedFetch(hydraAdminAuthParams),
 	);
 
+	// Redefinitions to keep TypeScript happy
+	const subjectTokenType_ = subjectTokenType;
+	const actorTokenType_ = actorTokenType;
+
 	return async (req: Request) => {
 		try {
 			const body = await bodyParser(req);
 
 			// REQUIRED
 			if (!body.has('subject_token')) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'missing subject_token',
-				});
+				return errorResponse(
+					'invalid_request',
+					'missing subject_token',
+				);
 			}
 
 			// REQUIRED
 			if (
-				body.get('subject_token_type') !==
-				'urn:ietf:params:oauth:token-type:access_token'
+				!body.has('subject_token_type') ||
+				!subjectTokenType_.includes(
+					String(body.get('subject_token_type')).toLowerCase(),
+				)
 			) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'invalid subject_token_type',
-				});
+				return errorResponse(
+					'invalid_request',
+					'invalid subject_token_type',
+				);
 			}
 
-			// OPTIONAL
+			// REQUIRED
 			if (
-				body.get('grant_type') !==
+				String(body.get('grant_type')).toLowerCase() !==
 				'urn:ietf:params:oauth:grant-type:token-exchange'
 			) {
-				throw new ResponseError({
-					['error']: 'unsupported_grant_type',
-				});
+				return errorResponse('unsupported_grant_type');
 			}
 
 			// OPTIONAL but only access_token supported
 			if (
-				body.get('requested_token_type') &&
-				body.get('requested_token_type') !==
+				body.has('requested_token_type') &&
+				String(body.get('requested_token_type')).toLowerCase() !==
 					'urn:ietf:params:oauth:token-type:access_token'
 			) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'invalid requested_token_type',
-				});
+				return errorResponse(
+					'invalid_request',
+					'invalid requested_token_type',
+				);
 			}
 
 			const requestedScope = String(body.get('scope') ?? '')
@@ -151,13 +167,11 @@ const exchangeTokenEndpoint = (
 			// OPTIONAL
 			if (
 				!requestedScope.reduce(
-					(acc, cv) => acc && hydraScope.includes(cv),
+					(acc, cv) => acc && !!scope?.includes(cv.toLowerCase()),
 					true,
 				)
 			) {
-				throw new ResponseError({
-					['error']: 'invalid_scope',
-				});
+				return errorResponse('invalid_scope');
 			}
 
 			const requestedAudience = body.getAll('audience');
@@ -165,32 +179,38 @@ const exchangeTokenEndpoint = (
 			// OPTIONAL
 			if (
 				!requestedAudience.reduce(
-					(acc, cv) => acc && hydraAudience.includes(cv),
+					(acc, cv) => acc && audience.includes(cv),
 					true,
 				)
 			) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'invalid audience',
-				});
+				return errorResponse('invalid_request', 'invalid audience');
 			}
 
 			const resource = body.get('resource');
 
 			// OPTIONAL, but must be a valid URL
 			if (resource && getOrigin(resource) === null) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'invalid resource',
-				});
+				return errorResponse('invalid_request', 'invalid resource');
 			}
 
 			// OPTIONAL
-			if (body.has('actor_token') && !body.has('actor_token_type')) {
-				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'missing actor_token_type',
-				});
+			if (body.has('actor_token') !== body.has('actor_token_type')) {
+				return errorResponse(
+					'invalid_request',
+					'missing actor_token or actor_token_type',
+				);
+			}
+
+			if (
+				body.has('actor_token_type') &&
+				!actorTokenType_.includes(
+					String(body.get('actor_token_type')).toLowerCase(),
+				)
+			) {
+				return errorResponse(
+					'invalid_request',
+					'invalid subject_token_type',
+				);
 			}
 
 			const sessionInformation = await userinfo(body);
@@ -216,25 +236,12 @@ const exchangeTokenEndpoint = (
 				}),
 				{
 					status: 200,
-					headers: { ['content-type']: 'application/json' },
+					headers: [['content-type', 'application/json']],
 				},
 			);
 		} catch (e) {
 			if (typeof e === 'number') {
 				return new Response(null, { status: e });
-			} else if (e instanceof ResponseError) {
-				return new Response(
-					JSON.stringify({
-						['error']: e.information.error,
-						['error_description']: e.information.error_description,
-					}),
-					{
-						status: e.information.status ?? 400,
-						headers: {
-							['content-type']: 'application/json',
-						},
-					},
-				);
 			}
 		}
 		return new Response(null, { status: 500 });

@@ -23,8 +23,6 @@ const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
 	'about:invalid', // hydraClientRedirectUri
 	'http://localhost:8846', // hydraPublicUri
 	'http://localhost:8847', // hydraAdminUri
-	[], // hydraScope
-	[], // hydraAudience
 	{ ['clientAuthMethod']: 'none' }, // hydraPublicAuthParams
 	{ ['clientAuthMethod']: 'none' }, // hydraAdminAuthParams
 	(body) => ({
@@ -33,6 +31,8 @@ const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
 			['body']: body.toString(),
 		},
 	}),
+	[], // scope
+	[], // audience
 );
 
 server(listeners.node)

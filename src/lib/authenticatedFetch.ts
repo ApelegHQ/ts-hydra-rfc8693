@@ -16,6 +16,8 @@
 const accessTokenSymbol = Symbol();
 const expiresSymbol = Symbol();
 
+// TODO: Add RFC 9068 support
+
 export type TAuthenticatedFetchParams =
 	| {
 			['tokenEndpointUri']?: string;
@@ -129,11 +131,6 @@ const authenticatedFetch = (
 		};
 
 		for (;;) {
-			console.log([
-				token[expiresSymbol],
-				process.hrtime.bigint(),
-				token[expiresSymbol] >= process.hrtime.bigint(),
-			]);
 			if (token[expiresSymbol] >= process.hrtime.bigint()) {
 				if (
 					token[expiresSymbol] - process.hrtime.bigint() <

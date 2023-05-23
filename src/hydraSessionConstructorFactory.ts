@@ -85,248 +85,320 @@ const hydraSessionConstructorFactory =
 		//   4. Intercept the redirect to the consent frotend and use the
 		//      parameters to accept the loggin request by making a request to
 		//      ${hydraAdminUri}/admin/oauth2/auth/requests/consent/accept
-		//   5. Make a request to the public endpoint at `${hydraPublicUri}/
-		//      oauth2/token` to obtain the token
+		//   5. Make a request to the public Hydra endpoint to obtain the
+		//      token parameters
+		//   6. Intercept the redirect and make a request to the token endpoint
+		//      at `${hydraPublicUri}/oauth2/token` to obtain the token
 		// Since this approach requires access to the admin API with the ability
 		// to accept login and consent requests, and any arbitrary information
 		// could be inserted into the resulting session, this function is only
 		// meant to be used in the context of a trusted setup.
+
 		const state = generateState();
 		const [code_verifier, code_challenge] = await generateChallenge();
 
-		const initiatorParams = new URLSearchParams([
-			...((requestedAudiences &&
-				Array.from(requestedAudiences)
-					.sort()
-					.map((aud) => ['audience', aud])) ||
-				[]),
-			['client_id', hydraClientId],
-			['code_challenge', code_challenge],
-			['code_challenge_method', 'S256'],
-			['redirect_uri', hydraClientRedirectUri],
-			['response_type', 'code'],
-			...((requestedScopes && [
-				['scope', Array.from(requestedScopes).sort().join(' ')],
-			]) ||
-				[]),
-			['state', state],
-		]);
+		return Promise.resolve()
+			.then(
+				/** 1. Initiate an authorization flow */
+				async () => {
+					const initiatorParams = new URLSearchParams([
+						...((requestedAudiences &&
+							Array.from(requestedAudiences)
+								.sort()
+								.map((aud) => ['audience', aud])) ||
+							[]),
+						['client_id', hydraClientId],
+						['code_challenge', code_challenge],
+						['code_challenge_method', 'S256'],
+						['redirect_uri', hydraClientRedirectUri],
+						['response_type', 'code'],
+						...((requestedScopes && [
+							[
+								'scope',
+								Array.from(requestedScopes).sort().join(' '),
+							],
+						]) ||
+							[]),
+						['state', state],
+					]);
 
-		const initiator = await publicFetch(
-			`${hydraPublicUri}/oauth2/auth?${initiatorParams}`,
-			{
-				redirect: 'manual',
-			},
-		);
-
-		if (
-			initiator.status < 300 ||
-			initiator.status > 399 ||
-			!initiator.headers.has('location')
-		) {
-			throw new Error('Redirect expected while initiating login request');
-		}
-
-		const loginCookies = initiator.headers
-			.getSetCookie()
-			.map((cookie: string) => cookie.split(';')[0])
-			.join('; ');
-
-		const loginChallenge = new URL(
-			String(initiator.headers.get('location')),
-		).searchParams.get('login_challenge');
-
-		if (!loginChallenge) {
-			throw new Error('Invalid login challenge');
-		}
-
-		const acceptedLoginRequest = await adminFetch(
-			`${hydraAdminUri}/admin/oauth2/auth/requests/login/accept?login_challenge=${encodeURIComponent(
-				loginChallenge,
-			)}`,
-			{
-				method: 'PUT',
-				body: JSON.stringify({
-					...(acr && { ['acr']: acr }),
-					...(Array.isArray(amr) && !!amr.length && { ['amr']: amr }),
-					['subject']: subject,
-				}),
-				redirect: 'error',
-			},
-		);
-
-		if (
-			acceptedLoginRequest.status !== 200 ||
-			!acceptedLoginRequest.headers
-				.get('content-type')
-				?.toLowerCase()
-				.startsWith('application/json')
-		) {
-			// TODO
-			throw new Error(
-				'Unexpected response code or content type while accepting login request',
-			);
-		}
-
-		const acceptedLoginRequestData = await acceptedLoginRequest.json();
-
-		const consentDestination = new URL(
-			acceptedLoginRequestData['redirect_to'],
-		);
-
-		const hydraLoginRequest = await publicFetch(
-			`${hydraPublicUri}${consentDestination.pathname}${consentDestination.search}`,
-			{
-				headers: loginCookies ? [['cookie', loginCookies]] : [],
-				redirect: 'manual',
-			},
-		);
-
-		if (
-			hydraLoginRequest.status < 300 ||
-			hydraLoginRequest.status > 399 ||
-			!hydraLoginRequest.headers.has('location')
-		) {
-			throw new Error(
-				'Redirect expected while consenting to login request',
-			);
-		}
-
-		const consentCookies = hydraLoginRequest.headers
-			.getSetCookie()
-			.map((cookie: string) => cookie.split(';')[0])
-			.join('; ');
-
-		const consentChallenge = new URL(
-			String(hydraLoginRequest.headers.get('location')),
-		).searchParams.get('consent_challenge');
-
-		if (!consentChallenge) {
-			throw new Error('Invalid consent challenge');
-		}
-
-		const acceptedConsentRequest = await adminFetch(
-			`${hydraAdminUri}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${encodeURIComponent(
-				consentChallenge,
-			)}`,
-			{
-				method: 'PUT',
-				body: JSON.stringify({
-					['grant_access_token_audience']: requestedAudiences,
-					['grant_scope']: requestedScopes,
-					...((sessionAccessTokenClaims || sessionIdTokenClaims) && {
-						['session']: {
-							...(sessionAccessTokenClaims && {
-								['access_token']: sessionAccessTokenClaims,
-							}),
-							...(sessionIdTokenClaims && {
-								['id_token']: sessionIdTokenClaims,
-							}),
+					const initiator = await publicFetch(
+						`${hydraPublicUri}/oauth2/auth?${initiatorParams}`,
+						{
+							redirect: 'manual',
 						},
-					}),
-				}),
-				redirect: 'error',
-			},
-		);
+					);
 
-		if (
-			acceptedConsentRequest.status !== 200 ||
-			!acceptedConsentRequest.headers
-				.get('content-type')
-				?.toLowerCase()
-				.startsWith('application/json')
-		) {
-			throw new Error(
-				'Unexpected response code or content type while accepting consent request',
+					if (
+						initiator.status < 300 ||
+						initiator.status > 399 ||
+						!initiator.headers.has('location')
+					) {
+						throw new Error(
+							'Redirect expected while initiating login request',
+						);
+					}
+
+					const loginCookies = initiator.headers
+						.getSetCookie()
+						.map((cookie: string) => cookie.split(';')[0])
+						.join('; ');
+
+					const loginChallenge = new URL(
+						String(initiator.headers.get('location')),
+					).searchParams.get('login_challenge');
+
+					if (!loginChallenge) {
+						throw new Error('Invalid login challenge');
+					}
+
+					return [loginChallenge, loginCookies];
+				},
+			)
+			.then(
+				/** 2. Intercept redirect to the authentication frontend and
+				 *     accept the login request
+				 */
+				async ([loginChallenge, loginCookies]) => {
+					const acceptedLoginRequest = await adminFetch(
+						`${hydraAdminUri}/admin/oauth2/auth/requests/login/accept?login_challenge=${encodeURIComponent(
+							loginChallenge,
+						)}`,
+						{
+							method: 'PUT',
+							body: JSON.stringify({
+								...(acr && { ['acr']: acr }),
+								...(Array.isArray(amr) &&
+									!!amr.length && { ['amr']: amr }),
+								['subject']: subject,
+							}),
+							redirect: 'error',
+						},
+					);
+
+					if (
+						acceptedLoginRequest.status !== 200 ||
+						!acceptedLoginRequest.headers
+							.get('content-type')
+							?.toLowerCase()
+							.startsWith('application/json')
+					) {
+						throw new Error(
+							'Unexpected response code or content type while accepting login request',
+						);
+					}
+
+					const acceptedLoginRequestData =
+						await acceptedLoginRequest.json();
+
+					const consentDestination = new URL(
+						acceptedLoginRequestData['redirect_to'],
+					);
+
+					return [
+						consentDestination.pathname + consentDestination.search,
+						loginCookies,
+					];
+				},
+			)
+			.then(
+				/** 3. Make a request to the public Hydra endpoint to obtain the
+				 *     consent parameters */
+				async ([consentDestination, loginCookies]) => {
+					const hydraLoginRequest = await publicFetch(
+						`${hydraPublicUri}${consentDestination}`,
+						{
+							headers: loginCookies
+								? [['cookie', loginCookies]]
+								: [],
+							redirect: 'manual',
+						},
+					);
+
+					if (
+						hydraLoginRequest.status < 300 ||
+						hydraLoginRequest.status > 399 ||
+						!hydraLoginRequest.headers.has('location')
+					) {
+						throw new Error(
+							'Redirect expected while accepting consent request',
+						);
+					}
+
+					const consentCookies = hydraLoginRequest.headers
+						.getSetCookie()
+						.map((cookie: string) => cookie.split(';')[0])
+						.join('; ');
+
+					const consentChallenge = new URL(
+						String(hydraLoginRequest.headers.get('location')),
+					).searchParams.get('consent_challenge');
+
+					if (!consentChallenge) {
+						throw new Error('Invalid consent challenge');
+					}
+
+					return [consentChallenge, consentCookies];
+				},
+			)
+			.then(
+				/** 4. Intercept redirect to the consent frontend and accept
+				 *     the consent request
+				 */
+				async ([consentChallenge, consentCookies]) => {
+					const acceptedConsentRequest = await adminFetch(
+						`${hydraAdminUri}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${encodeURIComponent(
+							consentChallenge,
+						)}`,
+						{
+							method: 'PUT',
+							body: JSON.stringify({
+								['grant_access_token_audience']:
+									requestedAudiences,
+								['grant_scope']: requestedScopes,
+								...((sessionAccessTokenClaims ||
+									sessionIdTokenClaims) && {
+									['session']: {
+										...(sessionAccessTokenClaims && {
+											['access_token']:
+												sessionAccessTokenClaims,
+										}),
+										...(sessionIdTokenClaims && {
+											['id_token']: sessionIdTokenClaims,
+										}),
+									},
+								}),
+							}),
+							redirect: 'error',
+						},
+					);
+
+					if (
+						acceptedConsentRequest.status !== 200 ||
+						!acceptedConsentRequest.headers
+							.get('content-type')
+							?.toLowerCase()
+							.startsWith('application/json')
+					) {
+						throw new Error(
+							'Unexpected response code or content type while accepting consent request',
+						);
+					}
+
+					const acceptedConsentRequestData =
+						await acceptedConsentRequest.json();
+
+					const finalDestination = new URL(
+						acceptedConsentRequestData['redirect_to'],
+					);
+
+					return [
+						finalDestination.pathname + finalDestination.search,
+						consentCookies,
+					];
+				},
+			)
+			.then(
+				/** 5. Make a request to the public Hydra endpoint to obtain the
+				 *     token parameters */
+				async ([finalDestination, consentCookies]) => {
+					const hydraConsentRequest = await publicFetch(
+						`${hydraPublicUri}${finalDestination}`,
+						{
+							headers: consentCookies
+								? [['cookie', consentCookies]]
+								: [],
+							redirect: 'manual',
+						},
+					);
+
+					if (
+						hydraConsentRequest.status < 300 ||
+						hydraConsentRequest.status > 399 ||
+						!hydraConsentRequest.headers.has('location')
+					) {
+						throw new Error(
+							'Redirect expected while accepting consent',
+						);
+					}
+
+					const clientRedirect = new URL(
+						String(hydraConsentRequest.headers.get('location')),
+					).searchParams;
+					const redirectState = clientRedirect.get('state');
+					const code = clientRedirect.get('code');
+
+					if (redirectState !== state) {
+						throw new Error('Invalid state');
+					}
+
+					if (!code) {
+						throw new Error('Invalid code');
+					}
+
+					return [code];
+				},
+			)
+			.then(
+				/** 6. Intercept the redirect and make a request to the token
+				 *     endpoint */
+				async ([code]) => {
+					const tokenRequest = await publicFetch(
+						`${hydraPublicUri}/oauth2/token`,
+						{
+							method: 'POST',
+							body: new URLSearchParams([
+								...(hydraTokenAuthMethod ===
+								'client_secret_basic'
+									? []
+									: hydraTokenAuthMethod ===
+									  'client_secret_post'
+									? [
+											['client_id', hydraClientId],
+											[
+												'client_secret',
+												String(hydraClientSecret),
+											],
+									  ]
+									: [['client_id', hydraClientId]]),
+								['code', code],
+								['code_verifier', code_verifier],
+								['grant_type', 'authorization_code'],
+								['redirect_uri', hydraClientRedirectUri],
+							]).toString(),
+							redirect: 'error',
+							headers: [
+								[
+									'content-type',
+									'application/x-www-form-urlencoded',
+								],
+							],
+							...(hydraTokenAuthMethod === 'client_secret_basic'
+								? {
+										auth: {
+											username: hydraClientId,
+											password: hydraClientSecret,
+										},
+								  }
+								: {}),
+						},
+					);
+
+					if (
+						tokenRequest.status !== 200 ||
+						!tokenRequest.headers
+							.get('content-type')
+							?.toLowerCase()
+							.startsWith('application/json')
+					) {
+						throw new Error(
+							'Unexpected response code or content type while fetching token',
+						);
+					}
+
+					return tokenRequest.json();
+				},
 			);
-		}
-
-		const acceptedConsentRequestData = await acceptedConsentRequest.json();
-
-		const finalDestination = new URL(
-			acceptedConsentRequestData['redirect_to'],
-		);
-
-		const hydraConsentRequest = await publicFetch(
-			[
-				`${hydraPublicUri}`,
-				finalDestination.pathname,
-				finalDestination.search,
-			].join(''),
-			{
-				headers: consentCookies ? [['cookie', consentCookies]] : [],
-				redirect: 'manual',
-			},
-		);
-
-		if (
-			hydraConsentRequest.status < 300 ||
-			hydraConsentRequest.status > 399 ||
-			!hydraConsentRequest.headers.has('location')
-		) {
-			throw new Error('Redirect expected');
-		}
-
-		const clientRedirect = new URL(
-			String(hydraConsentRequest.headers.get('location')),
-		).searchParams;
-		const redirectState = clientRedirect.get('state');
-		const code = clientRedirect.get('code');
-
-		if (redirectState !== state) {
-			throw new Error('Invalid state');
-		}
-
-		if (!code) {
-			throw new Error('Invalid code');
-		}
-
-		const tokenRequest = await publicFetch(
-			`${hydraPublicUri}/oauth2/token`,
-			{
-				method: 'POST',
-				body: new URLSearchParams([
-					...(hydraTokenAuthMethod === 'client_secret_basic'
-						? []
-						: hydraTokenAuthMethod === 'client_secret_post'
-						? [
-								['client_id', hydraClientId],
-								['client_secret', String(hydraClientSecret)],
-						  ]
-						: [['client_id', hydraClientId]]),
-					['code', code],
-					['code_verifier', code_verifier],
-					['grant_type', 'authorization_code'],
-					['redirect_uri', hydraClientRedirectUri],
-				]).toString(),
-				redirect: 'error',
-				headers: [
-					['content-type', 'application/x-www-form-urlencoded'],
-				],
-				...(hydraTokenAuthMethod === 'client_secret_basic'
-					? {
-							auth: {
-								username: hydraClientId,
-								password: hydraClientSecret,
-							},
-					  }
-					: {}),
-			},
-		);
-
-		if (
-			tokenRequest.status !== 200 ||
-			!tokenRequest.headers
-				.get('content-type')
-				?.toLowerCase()
-				.startsWith('application/json')
-		) {
-			throw new Error(
-				'Unexpected response code or content type while fetching token',
-			);
-		}
-
-		return tokenRequest.json();
 	};
 
 export default hydraSessionConstructorFactory;
