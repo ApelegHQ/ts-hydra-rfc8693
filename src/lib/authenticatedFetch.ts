@@ -44,13 +44,14 @@ const authenticatedFetch = (
 	// Redefine config for it to have the correct type
 	const config = config_;
 
-	async function* getToken() {
-		let token: { [accessTokenSymbol]: string; [expiresSymbol]: bigint } =
-			Object.create(null);
+	const token: { [accessTokenSymbol]: string; [expiresSymbol]: bigint } =
+		Object.create(null);
 
+	async function* getToken() {
 		const refreshToken = async (): Promise<string> => {
 			const tokenRequest = await fetch(
 				new Request(config['tokenEndpointUri'], {
+					['duplex']: 'half',
 					['body']: new Blob([
 						new URLSearchParams({
 							['grant_type']: 'client_credentials',
@@ -78,14 +79,18 @@ const authenticatedFetch = (
 					['redirect']: 'error',
 					['method']: 'POST',
 					['headers']: [
+						...(config.clientAuthMethod === 'client_secret_basic'
+							? ([
+									[
+										'authorization',
+										`Basic ${btoa(
+											`${config.clientId}:${config.clientSecret}`,
+										)}`,
+									],
+							  ] as [string, string][])
+							: []),
 						['content-type', 'application/x-www-form-urlencoded'],
 					],
-					...(config.clientAuthMethod === 'client_secret_basic' && {
-						auth: {
-							username: config.clientId,
-							password: config.clientSecret,
-						},
-					}),
 				}),
 			);
 
@@ -95,31 +100,28 @@ const authenticatedFetch = (
 
 			const tokenResponse = await tokenRequest.json();
 
+			const accessToken = Reflect.get(tokenResponse, 'access_token');
+			const tokenType = Reflect.get(tokenResponse, 'token_type');
+
 			if (
-				typeof Reflect.get(tokenResponse, 'access_token') !==
-					'string' ||
-				typeof Reflect.get(tokenResponse, 'token_type') !== 'string' ||
-				tokenResponse['token_type'].toLowerCase() !== 'bearer'
+				typeof accessToken !== 'string' ||
+				typeof tokenType !== 'string' ||
+				tokenType.toLowerCase() !== 'bearer'
 			) {
 				throw new Error('Invalid token response');
 			}
 
-			const accessToken: string = tokenResponse['access_token'];
+			const expiresIn = Reflect.get(tokenResponse, 'expires_in');
 
 			if (
-				typeof Reflect.get(tokenResponse, 'expires_in') === 'number' &&
+				typeof expiresIn === 'number' &&
 				tokenResponse['expires_in'] > 0
 			) {
-				token = Object.create(null, {
-					[accessTokenSymbol]: {
-						value: accessToken,
-					},
-					[expiresSymbol]: {
-						value:
-							process.hrtime.bigint() +
-							BigInt(tokenResponse['expires_in']) *
-								BigInt(980200000),
-					},
+				Object.assign(token, {
+					[accessTokenSymbol]: accessToken,
+					[expiresSymbol]:
+						process.hrtime.bigint() +
+						BigInt(tokenResponse['expires_in']) * BigInt(980200000),
 				});
 			}
 
@@ -127,6 +129,11 @@ const authenticatedFetch = (
 		};
 
 		for (;;) {
+			console.log([
+				token[expiresSymbol],
+				process.hrtime.bigint(),
+				token[expiresSymbol] >= process.hrtime.bigint(),
+			]);
 			if (token[expiresSymbol] >= process.hrtime.bigint()) {
 				if (
 					token[expiresSymbol] - process.hrtime.bigint() <
@@ -150,7 +157,10 @@ const authenticatedFetch = (
 		const request = new Request(input, init);
 
 		const token = getToken();
-		request.headers.set('authorization', (await token.next()).value);
+		request.headers.set(
+			'authorization',
+			'Bearer ' + (await token.next()).value,
+		);
 		return fetch(request);
 	};
 

@@ -103,15 +103,15 @@ const exchangeTokenEndpoint = (
 		try {
 			const body = await bodyParser(req);
 
-			if (
-				body.get('grant_type') !==
-				'urn:ietf:params:oauth:grant-type:token-exchange'
-			) {
+			// REQUIRED
+			if (!body.has('subject_token')) {
 				throw new ResponseError({
-					['error']: 'unsupported_grant_type',
+					['error']: 'invalid_request',
+					['error_description']: 'missing subject_token',
 				});
 			}
 
+			// REQUIRED
 			if (
 				body.get('subject_token_type') !==
 				'urn:ietf:params:oauth:token-type:access_token'
@@ -122,6 +122,17 @@ const exchangeTokenEndpoint = (
 				});
 			}
 
+			// OPTIONAL
+			if (
+				body.get('grant_type') !==
+				'urn:ietf:params:oauth:grant-type:token-exchange'
+			) {
+				throw new ResponseError({
+					['error']: 'unsupported_grant_type',
+				});
+			}
+
+			// OPTIONAL but only access_token supported
 			if (
 				body.get('requested_token_type') &&
 				body.get('requested_token_type') !==
@@ -133,30 +144,25 @@ const exchangeTokenEndpoint = (
 				});
 			}
 
-			const requestedScope =
-				typeof body.get('scope') !== 'undefined'
-					? typeof body.get('scope') === 'string'
-						? String(body.get('scope') ?? '')
-								.split(' ')
-								.filter((v) => v.length)
-						: null
-					: [];
+			const requestedScope = String(body.get('scope') ?? '')
+				.split(' ')
+				.filter((v) => v.length);
 
+			// OPTIONAL
 			if (
-				requestedScope === null ||
 				!requestedScope.reduce(
 					(acc, cv) => acc && hydraScope.includes(cv),
 					true,
 				)
 			) {
 				throw new ResponseError({
-					['error']: 'invalid_request',
-					['error_description']: 'invalid scope',
+					['error']: 'invalid_scope',
 				});
 			}
 
 			const requestedAudience = body.getAll('audience');
 
+			// OPTIONAL
 			if (
 				!requestedAudience.reduce(
 					(acc, cv) => acc && hydraAudience.includes(cv),
@@ -171,10 +177,19 @@ const exchangeTokenEndpoint = (
 
 			const resource = body.get('resource');
 
-			if (!resource) {
+			// OPTIONAL, but must be a valid URL
+			if (resource && getOrigin(resource) === null) {
 				throw new ResponseError({
 					['error']: 'invalid_request',
 					['error_description']: 'invalid resource',
+				});
+			}
+
+			// OPTIONAL
+			if (body.has('actor_token') && !body.has('actor_token_type')) {
+				throw new ResponseError({
+					['error']: 'invalid_request',
+					['error_description']: 'missing actor_token_type',
 				});
 			}
 

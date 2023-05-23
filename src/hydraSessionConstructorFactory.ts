@@ -207,7 +207,7 @@ const hydraSessionConstructorFactory =
 
 		const acceptedConsentRequest = await adminFetch(
 			`${hydraAdminUri}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${encodeURIComponent(
-				loginChallenge,
+				consentChallenge,
 			)}`,
 			{
 				method: 'PUT',
@@ -284,6 +284,7 @@ const hydraSessionConstructorFactory =
 		const tokenRequest = await publicFetch(
 			`${hydraPublicUri}/oauth2/token`,
 			{
+				method: 'POST',
 				body: new URLSearchParams([
 					...(hydraTokenAuthMethod === 'client_secret_basic'
 						? []

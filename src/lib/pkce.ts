@@ -20,7 +20,8 @@ const bbtoa = (b: Uint8Array) =>
 		.split('+')
 		.join('-')
 		.split('/')
-		.join('_');
+		.join('_')
+		.replace(/={1,2}$/, '');
 
 const generateRandomB64U = (l: number) => {
 	const buf = new Uint8Array(l);
