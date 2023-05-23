@@ -16,6 +16,10 @@
 export {};
 
 declare global {
+	interface Headers {
+		getSetCookie(): string[];
+	}
+
 	interface RequestInit {
 		duplex?: 'full' | 'half';
 	}

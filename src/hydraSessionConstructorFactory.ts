@@ -2,7 +2,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License") with LLVM
  * exceptions; you may not use this file except in compliance with the
- * License.You may obtain a copy of the License at
+ * License. You may obtain a copy of the License at
  *
  * http://llvm.org/foundation/relicensing/LICENSE.txt
  *
@@ -14,12 +14,6 @@
  */
 
 import { generateChallenge, generateState } from './lib/pkce.js';
-
-declare global {
-	interface Headers {
-		getSetCookie(): string[];
-	}
-}
 
 /**
  * Returns a function that constructs a Hydra session
