@@ -2,7 +2,13 @@
 
 An NPM package for implementing RFC 8693 for Ory Hydra 🚀
 
-[![License](https://img.shields.io/badge/License-Apache%202.0%20with%20llvm%20exception-blue.svg)](https://github.com/Exact-Realty/ts-hydra-rfc8693/blob/main/LICENSE)
+ [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
+ [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
+ [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
+ [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
+ [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
+ ![NPM Downloads](https://img.shields.io/npm/dw/@exact-realty/hydra-rfc8693?style=flat-square)
+ [![License](https://img.shields.io/badge/License-Apache%202.0%20with%20llvm%20exception-blue.svg)](https://github.com/Exact-Realty/ts-hydra-rfc8693/blob/master/LICENSE)
 
 ## 📖 Introduction
 
@@ -73,7 +79,7 @@ const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
       name: 'Alice',
     }
   }),
-  [], // scope. Optional list of lowercase scopes
+  [], // scope. Optional list of scopes
   [], // audience. Optional list of audiences
   [], // subjectTokenType. Optional list of acceptable token types;
       // null or undefined defaults to access tokens
@@ -93,7 +99,7 @@ server(listeners.node)
 🎉 We appreciate contributions from the community! If you have any ideas,
 suggestions, or find any issues, feel free to open an issue or submit a pull
 request on our
-[GitHub repository](https://github.com/Exact-Realty/ts-hydra-rfc8693).
+[GitHub repository](https://github.com/Exact-Realty/hydra-rfc8693).
 
 ## ❗️ Disclaimer
 

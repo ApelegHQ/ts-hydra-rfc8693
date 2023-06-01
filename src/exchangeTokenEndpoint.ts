@@ -167,7 +167,7 @@ const exchangeTokenEndpoint = (
 			// OPTIONAL
 			if (
 				!requestedScope.reduce(
-					(acc, cv) => acc && !!scope?.includes(cv.toLowerCase()),
+					(acc, cv) => acc && !!scope?.includes(cv),
 					true,
 				)
 			) {
