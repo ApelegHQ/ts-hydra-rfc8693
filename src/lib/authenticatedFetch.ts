@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+import basicAuthorizationHeader from './basicAuthorizationHeader.js';
+
 const accessTokenSymbol = Symbol();
 const expiresSymbol = Symbol();
 
@@ -82,14 +84,12 @@ const authenticatedFetch = (
 					['method']: 'POST',
 					['headers']: [
 						...(config.clientAuthMethod === 'client_secret_basic'
-							? ([
-									[
-										'authorization',
-										`Basic ${btoa(
-											`${config.clientId}:${config.clientSecret}`,
-										)}`,
-									],
-							  ] as [string, string][])
+							? [
+									basicAuthorizationHeader(
+										config.clientId,
+										config.clientSecret,
+									),
+							  ]
 							: []),
 						['content-type', 'application/x-www-form-urlencoded'],
 					],

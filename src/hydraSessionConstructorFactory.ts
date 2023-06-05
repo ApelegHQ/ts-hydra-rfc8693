@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+import basicAuthorizationHeader from './lib/basicAuthorizationHeader.js';
 import { generateChallenge, generateState } from './lib/pkce.js';
 
 /**
@@ -362,19 +363,20 @@ const hydraSessionConstructorFactory =
 							]).toString(),
 							redirect: 'error',
 							headers: [
+								...(hydraTokenAuthMethod ===
+								'client_secret_basic'
+									? [
+											basicAuthorizationHeader(
+												hydraClientId,
+												String(hydraClientSecret),
+											),
+									  ]
+									: []),
 								[
 									'content-type',
 									'application/x-www-form-urlencoded',
 								],
 							],
-							...(hydraTokenAuthMethod === 'client_secret_basic'
-								? {
-										auth: {
-											username: hydraClientId,
-											password: hydraClientSecret,
-										},
-								  }
-								: {}),
 						},
 					);
 
