@@ -20,38 +20,41 @@ const expiresSymbol = Symbol();
 
 // TODO: Add RFC 9068 support
 
-export type TAuthenticatedFetchParams =
+export type TAuthenticatedFetchParams = {
+	['scope']?: string;
+	['audience']?: string;
+	['fetchFn']?: typeof fetch;
+} & (
 	| {
 			['tokenEndpointUri']?: string;
 			['clientAuthMethod']: 'none';
 			['clientId']?: string;
 			['clientSecret']?: string;
-			['scope']?: string;
-			['audience']?: string;
 	  }
 	| {
 			['tokenEndpointUri']: string;
 			['clientAuthMethod']: 'client_secret_basic' | 'client_secret_post';
 			['clientId']: string;
 			['clientSecret']: string;
-			['scope']?: string;
-			['audience']?: string;
-	  };
+	  }
+);
 
 const authenticatedFetch = (
 	config_: Readonly<TAuthenticatedFetchParams>,
 ): typeof fetch => {
+	const fetchFn = config_['fetchFn'] ?? fetch;
+
 	if (config_['clientAuthMethod'] === 'none') {
-		return fetch;
+		return fetchFn;
 	}
 
 	// Redefine config for it to have the correct type
 	const config = config_;
 
-	const token: { [accessTokenSymbol]: string; [expiresSymbol]: bigint } =
-		Object.create(null);
-
 	async function* getToken() {
+		const token: { [accessTokenSymbol]: string; [expiresSymbol]: bigint } =
+			Object.create(null);
+
 		const refreshToken = async (): Promise<string> => {
 			const tokenRequest = await fetch(
 				new Request(config['tokenEndpointUri'], {
@@ -147,18 +150,19 @@ const authenticatedFetch = (
 		}
 	}
 
+	const token = getToken();
+
 	const authenticatedFetch: typeof fetch = async (...args) => {
 		const input = args[0];
 		const init = args[1];
 
 		const request = new Request(input, init);
 
-		const token = getToken();
 		request.headers.set(
 			'authorization',
 			'Bearer ' + (await token.next()).value,
 		);
-		return fetch(request);
+		return fetchFn(request);
 	};
 
 	return authenticatedFetch;

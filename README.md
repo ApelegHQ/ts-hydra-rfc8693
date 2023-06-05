@@ -97,9 +97,9 @@ server(listeners.node)
 ## 🤝 Contributing
 
 🎉 We appreciate contributions from the community! If you have any ideas,
-suggestions, or find any issues, feel free to open an issue or submit a pull
+suggestions or find any issues, feel free to open an issue or submit a pull
 request on our
-[GitHub repository](https://github.com/Exact-Realty/hydra-rfc8693).
+[GitHub repository](https://github.com/Exact-Realty/ts-hydra-rfc8693).
 
 ## ❗️ Disclaimer
 
