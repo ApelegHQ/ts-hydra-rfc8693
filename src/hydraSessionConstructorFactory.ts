@@ -31,17 +31,16 @@ import { generateChallenge, generateState } from './lib/pkce.js';
  * @param adminFetch The fetch function used for admin requests.
  * @returns A function that constructs a Hydra session.
  */
-const hydraSessionConstructorFactory =
-	(
-		hydraClientId: Readonly<string>,
-		hydraClientSecret: Readonly<string | undefined>,
-		hydraTokenAuthMethod: Readonly<string>,
-		hydraClientRedirectUri: Readonly<string>,
-		hydraPublicUri: Readonly<string>,
-		hydraAdminUri: Readonly<string>,
-		publicFetch: typeof self.fetch,
-		adminFetch: typeof self.fetch,
-	) =>
+const hydraSessionConstructorFactory = (
+	hydraClientId: Readonly<string>,
+	hydraClientSecret: Readonly<string | undefined>,
+	hydraTokenAuthMethod: Readonly<string>,
+	hydraClientRedirectUri: Readonly<string>,
+	hydraPublicUri: Readonly<string>,
+	hydraAdminUri: Readonly<string>,
+	publicFetch: typeof self.fetch,
+	adminFetch: typeof self.fetch,
+) => {
 	/**
 	 * Constructs a Hydra session by initiating the login and consent flow.
 	 *
@@ -54,7 +53,9 @@ const hydraSessionConstructorFactory =
 	 * @param amr The Authentication Methods References (AMR).
 	 * @returns A promise that resolves to the fetched token.
 	 */
-	async (
+	const hydraPublicOrigin = new URL(hydraPublicUri).origin;
+
+	return async (
 		requestedScopes: Readonly<Iterable<string> | undefined>,
 		requestedAudiences: Readonly<Iterable<string> | undefined>,
 		subject: Readonly<string>,
@@ -201,7 +202,7 @@ const hydraSessionConstructorFactory =
 				 *     consent parameters */
 				async ([consentDestination, loginCookies]) => {
 					const hydraLoginRequest = await publicFetch(
-						`${hydraPublicUri}${consentDestination}`,
+						`${hydraPublicOrigin}${consentDestination}`,
 						{
 							headers: loginCookies
 								? [['cookie', loginCookies]]
@@ -298,7 +299,7 @@ const hydraSessionConstructorFactory =
 				 *     token parameters */
 				async ([finalDestination, consentCookies]) => {
 					const hydraConsentRequest = await publicFetch(
-						`${hydraPublicUri}${finalDestination}`,
+						`${hydraPublicOrigin}${finalDestination}`,
 						{
 							headers: consentCookies
 								? [['cookie', consentCookies]]
@@ -396,5 +397,6 @@ const hydraSessionConstructorFactory =
 				},
 			);
 	};
+};
 
 export default hydraSessionConstructorFactory;
