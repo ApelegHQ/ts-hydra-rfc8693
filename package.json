@@ -1,6 +1,6 @@
 {
 	"name": "@exact-realty/hydra-rfc8693",
-	"version": "1.1.5",
+	"version": "1.1.6",
 	"description": "An implementation of RFC 8693 for Ory Hydra, providing powerful capabilities for token exchange in OAuth 2.0 and OpenID Connect servers.",
 	"main": "dist/index.js",
 	"module": "./dist/index.mjs",
@@ -15,11 +15,11 @@
 		}
 	},
 	"devDependencies": {
-		"@exact-realty/routemate": "^1.0.3",
-		"@types/node": "^18.16.3",
-		"@typescript-eslint/eslint-plugin": "^6.0.0",
-		"@typescript-eslint/parser": "^6.0.0",
-		"esbuild": "^0.18.13",
+		"@exact-realty/routemate": "^1.0.4",
+		"@types/node": "^20.4.4",
+		"@typescript-eslint/eslint-plugin": "^6.2.0",
+		"@typescript-eslint/parser": "^6.2.0",
+		"esbuild": "^0.18.16",
 		"eslint": "^8.45.0",
 		"eslint-config-prettier": "^8.8.0",
 		"eslint-plugin-prettier": "^5.0.0",
@@ -33,6 +33,9 @@
 		"type": "git",
 		"url": "git+https://github.com/Exact-Realty/ts-hydra-rfc8693.git"
 	},
+	"files": [
+		"dist/**/*"
+	],
 	"scripts": {
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx",
 		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
@@ -41,7 +44,6 @@
 		"prepare": "npm run build",
 		"prepublishOnly": "npm test && npm run lint",
 		"preversion": "npm run lint",
-		"postinstall": "exit 0",
 		"version": "npm run lint && git add -A src",
 		"postversion": "git push && git push --tags"
 	},

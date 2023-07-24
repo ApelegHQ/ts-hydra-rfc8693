@@ -108,7 +108,7 @@ used for token exchange when the token issuer is trusted. It is essential to
 exercise caution and ensure the security of your setup when utilising token
 exchange capabilities.
 
-This software is not affiliated with or endorsed by ORY or the developers of
+This software is not affiliated with or endorsed by Ory or the developers of
 Ory Hydra. It is an independent implementation of RFC 8693 for Ory Hydra and is
 provided as-is, without any warranties or guarantees of fitness for a
 particular purpose.
