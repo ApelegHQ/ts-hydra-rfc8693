@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-module.exports = {
+export default {
   semi: true,
   trailingComma: "all",
   singleQuote: true,

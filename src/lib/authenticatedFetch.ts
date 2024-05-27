@@ -66,15 +66,15 @@ const authenticatedFetch = (
 							'client_secret_basic'
 								? {}
 								: config.clientAuthMethod ===
-								  'client_secret_post'
-								? {
-										['client_id']: config['clientId'],
-										['client_secret']:
-											config['clientSecret'],
-								  }
-								: {
-										['client_id']: config['clientId'],
-								  }),
+									  'client_secret_post'
+									? {
+											['client_id']: config['clientId'],
+											['client_secret']:
+												config['clientSecret'],
+										}
+									: {
+											['client_id']: config['clientId'],
+										}),
 							...(config['scope']
 								? { ['scope']: config['scope'] }
 								: {}),
@@ -92,7 +92,7 @@ const authenticatedFetch = (
 										config.clientId,
 										config.clientSecret,
 									),
-							  ]
+								]
 							: []),
 						['content-type', 'application/x-www-form-urlencoded'],
 					],

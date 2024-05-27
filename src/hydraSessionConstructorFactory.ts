@@ -348,15 +348,15 @@ const hydraSessionConstructorFactory = (
 								'client_secret_basic'
 									? []
 									: hydraTokenAuthMethod ===
-									  'client_secret_post'
-									? [
-											['client_id', hydraClientId],
-											[
-												'client_secret',
-												String(hydraClientSecret),
-											],
-									  ]
-									: [['client_id', hydraClientId]]),
+										  'client_secret_post'
+										? [
+												['client_id', hydraClientId],
+												[
+													'client_secret',
+													String(hydraClientSecret),
+												],
+											]
+										: [['client_id', hydraClientId]]),
 								['code', code],
 								['code_verifier', code_verifier],
 								['grant_type', 'authorization_code'],
@@ -371,7 +371,7 @@ const hydraSessionConstructorFactory = (
 												hydraClientId,
 												String(hydraClientSecret),
 											),
-									  ]
+										]
 									: []),
 								[
 									'content-type',
