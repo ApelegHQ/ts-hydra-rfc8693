@@ -1,4 +1,4 @@
-/* Copyright © 2023 Exact Realty Limited. All rights reserved.
+/* Copyright © 2023 Apeleg Limited. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License") with LLVM
  * exceptions; you may not use this file except in compliance with the
@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import server, { listeners } from '@exact-realty/routemate';
+import server, { listeners } from '@apeleghq/routemate';
 import exchangeTokenEndpoint from '../src/index.js';
 
 const exchangeTokenEndpointHandler = exchangeTokenEndpoint(

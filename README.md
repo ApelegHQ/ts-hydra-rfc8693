@@ -7,7 +7,7 @@ An NPM package for implementing RFC 8693 for Ory Hydra 🚀
  [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
  [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
  [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Exact-Realty_hydra-rfc8693&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Exact-Realty_hydra-rfc8693)
- ![NPM Downloads](https://img.shields.io/npm/dw/@exact-realty/hydra-rfc8693?style=flat-square)
+ ![NPM Downloads](https://img.shields.io/npm/dw/@apeleghq/hydra-rfc8693?style=flat-square)
  [![License](https://img.shields.io/badge/License-Apache%202.0%20with%20llvm%20exception-blue.svg)](https://github.com/Exact-Realty/ts-hydra-rfc8693/blob/master/LICENSE)
 
 ## 📖 Introduction
@@ -47,7 +47,7 @@ with any runtime environment.
 Getting started with **hydra-rfc8693** is as easy as running a simple command:
 
 ```sh
-npm install "@exact-realty/hydra-rfc8693"
+npm install "@apeleghq/hydra-rfc8693"
 ```
 
 ## 💡 Usage
@@ -56,8 +56,8 @@ Integrating **hydra-rfc8693** into your project is a breeze. Here's a quick
 example to get you started:
 
 ```js
-import server, { listeners } from '@exact-realty/routemate';
-import exchangeTokenEndpoint from '@exact-realty/hydra-rfc8693';
+import server, { listeners } from '@apeleghq/routemate';
+import exchangeTokenEndpoint from '@apeleghq/hydra-rfc8693';
 
 const exchangeTokenEndpointHandler = exchangeTokenEndpoint(
   'deadbeef-abba-cafe-affe-123456789012', // hydraClientId
